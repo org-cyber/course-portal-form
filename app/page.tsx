@@ -72,7 +72,6 @@ export default function Home() {
     if (!form.city.trim()) e.city = 'City is required';
     if (!form.state.trim()) e.state = 'State is required';
 
-    // Validate documents
     if (docRequirements) {
       for (const doc of docRequirements) {
         const file = documents[doc.key];
@@ -127,7 +126,6 @@ export default function Home() {
     setSubmitting(true);
 
     try {
-      // Upload all documents
       const documentKeys: Record<string, string> = {};
       for (const doc of docRequirements) {
         const file = documents[doc.key];
@@ -136,7 +134,6 @@ export default function Home() {
         }
       }
 
-      // Create application
       const appRes = await fetch('/api/applications', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -163,7 +160,6 @@ export default function Home() {
 
       const { authorizationUrl } = await appRes.json();
       window.location.href = authorizationUrl;
-
     } catch (err: any) {
       setError(err.message || 'Something went wrong. Please try again.');
     } finally {
@@ -173,19 +169,29 @@ export default function Home() {
 
   return (
     <div className="container">
-      <div className="card">
-        <h1 style={{ marginBottom: '0.5rem', fontSize: '1.5rem' }}>
-          Online Application Portal
-        </h1>
-        <p style={{ color: 'var(--text-secondary)', marginBottom: '2rem' }}>
-          Fill in your details and upload your documents to proceed.
-        </p>
+      {/* ── Masthead ── */}
+      <div className="masthead">
+        <div className="masthead-logo">
+          <img src="/logo.png" alt="Eastern Polytechnic" className="masthead-image" />
+        </div>
+        <div className="masthead-body">
+          <h1>Eastern Polytechnic</h1>
+          <p>Online Admission Portal &mdash; 2025/2026 Session</p>
+        </div>
+      </div>
 
+      {/* ── Card ── */}
+      <div className="card">
         <form onSubmit={handleSubmit}>
-          {/* Program */}
+
+          {/* ── Programme ── */}
+          <div className="section-heading">
+            <span>Programme</span>
+          </div>
+
           <div className="form-group">
             <label>
-              SELECT A PROGRAM <span style={{ color: 'var(--error)' }}>*</span>
+              Select a Programme <span className="req">*</span>
             </label>
             <select
               value={form.program}
@@ -194,7 +200,7 @@ export default function Home() {
                 setDocuments({});
               }}
             >
-              <option value="">-- Select Program --</option>
+              <option value="">— Choose Programme —</option>
               {COURSES.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.name}
@@ -204,145 +210,181 @@ export default function Home() {
             {errors.program && <div className="error">{errors.program}</div>}
           </div>
 
-          {/* Full Name */}
+          <div className="form-divider" />
+
+          {/* ── Personal information ── */}
+          <div className="section-heading">
+            <span>Personal Information</span>
+          </div>
+
+          {/* Full name */}
           <div className="form-group">
             <label>
-              FULL NAME <span style={{ color: 'var(--error)' }}>*</span>
+              Full Name <span className="req">*</span>
             </label>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.5rem' }}>
-              <input
-                placeholder="First Name"
-                value={form.firstName}
-                onChange={(e) => updateField('firstName', e.target.value)}
-              />
-              <input
-                placeholder="Middle Name"
-                value={form.middleName}
-                onChange={(e) => updateField('middleName', e.target.value)}
-              />
-              <input
-                placeholder="Surname"
-                value={form.surname}
-                onChange={(e) => updateField('surname', e.target.value)}
-              />
+            <div className="grid-3">
+              <div>
+                <p className="sub-label">First Name</p>
+                <input
+                  placeholder="First name"
+                  value={form.firstName}
+                  onChange={(e) => updateField('firstName', e.target.value)}
+                />
+              </div>
+              <div>
+                <p className="sub-label">Middle Name</p>
+                <input
+                  placeholder="Middle name"
+                  value={form.middleName}
+                  onChange={(e) => updateField('middleName', e.target.value)}
+                />
+              </div>
+              <div>
+                <p className="sub-label">Surname</p>
+                <input
+                  placeholder="Surname"
+                  value={form.surname}
+                  onChange={(e) => updateField('surname', e.target.value)}
+                />
+              </div>
             </div>
             {(errors.firstName || errors.surname) && (
               <div className="error">{errors.firstName || errors.surname}</div>
             )}
           </div>
 
-          {/* DOB & Gender */}
-          <div className="form-group">
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-              <div>
-                <label>
-                  DATE OF BIRTH <span style={{ color: 'var(--error)' }}>*</span>
-                </label>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.5rem' }}>
-                  <select value={form.day} onChange={(e) => updateField('day', e.target.value)}>
-                    <option value="">Day</option>
-                    {DAYS.map((d) => <option key={d} value={d}>{d}</option>)}
-                  </select>
-                  <select value={form.month} onChange={(e) => updateField('month', e.target.value)}>
-                    <option value="">Month</option>
-                    {MONTHS.map((m) => <option key={m} value={m}>{m}</option>)}
-                  </select>
-                  <select value={form.year} onChange={(e) => updateField('year', e.target.value)}>
-                    <option value="">Year</option>
-                    {YEARS.map((y) => <option key={y} value={y}>{y}</option>)}
-                  </select>
-                </div>
-                {errors.dateOfBirth && <div className="error">{errors.dateOfBirth}</div>}
-              </div>
-
-              <div>
-                <label>
-                  GENDER <span style={{ color: 'var(--error)' }}>*</span>
-                </label>
-                <select value={form.gender} onChange={(e) => updateField('gender', e.target.value)}>
-                  <option value="">-- Select Gender --</option>
-                  <option value="male">Male</option>
-                  <option value="female">Female</option>
-                  <option value="other">Other</option>
+          {/* DOB + Gender */}
+          <div className="grid-2" style={{ marginBottom: '1.5rem' }}>
+            <div>
+              <label>
+                Date of Birth <span className="req">*</span>
+              </label>
+              <div className="grid-dob">
+                <select value={form.day} onChange={(e) => updateField('day', e.target.value)}>
+                  <option value="">Day</option>
+                  {DAYS.map((d) => (
+                    <option key={d} value={d}>{d}</option>
+                  ))}
                 </select>
-                {errors.gender && <div className="error">{errors.gender}</div>}
+                <select value={form.month} onChange={(e) => updateField('month', e.target.value)}>
+                  <option value="">Month</option>
+                  {MONTHS.map((m) => (
+                    <option key={m} value={m}>{m}</option>
+                  ))}
+                </select>
+                <select value={form.year} onChange={(e) => updateField('year', e.target.value)}>
+                  <option value="">Year</option>
+                  {YEARS.map((y) => (
+                    <option key={y} value={y}>{y}</option>
+                  ))}
+                </select>
               </div>
+              {errors.dateOfBirth && <div className="error">{errors.dateOfBirth}</div>}
+            </div>
+
+            <div>
+              <label>
+                Gender <span className="req">*</span>
+              </label>
+              <select value={form.gender} onChange={(e) => updateField('gender', e.target.value)}>
+                <option value="">— Select —</option>
+                <option value="male">Male</option>
+                <option value="female">Female</option>
+                <option value="other">Other</option>
+              </select>
+              {errors.gender && <div className="error">{errors.gender}</div>}
             </div>
           </div>
 
-          {/* Phone & Email */}
-          <div className="form-group">
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-              <div>
-                <label>
-                  PHONE NUMBER <span style={{ color: 'var(--error)' }}>*</span>
-                </label>
-                <input
-                  type="tel"
-                  placeholder="Phone Number"
-                  value={form.phoneNumber}
-                  onChange={(e) => updateField('phoneNumber', e.target.value)}
-                />
-                {errors.phoneNumber && <div className="error">{errors.phoneNumber}</div>}
-              </div>
+          {/* Phone + Email */}
+          <div className="grid-2" style={{ marginBottom: '1.5rem' }}>
+            <div>
+              <label>
+                Phone Number <span className="req">*</span>
+              </label>
+              <input
+                type="tel"
+                placeholder="+234 000 000 0000"
+                value={form.phoneNumber}
+                onChange={(e) => updateField('phoneNumber', e.target.value)}
+              />
+              {errors.phoneNumber && <div className="error">{errors.phoneNumber}</div>}
+            </div>
 
-              <div>
-                <label>
-                  EMAIL ADDRESS <span style={{ color: 'var(--error)' }}>*</span>
-                </label>
-                <input
-                  type="email"
-                  placeholder="Email Address"
-                  value={form.email}
-                  onChange={(e) => updateField('email', e.target.value)}
-                />
-                {errors.email && <div className="error">{errors.email}</div>}
-              </div>
+            <div>
+              <label>
+                Email Address <span className="req">*</span>
+              </label>
+              <input
+                type="email"
+                placeholder="you@example.com"
+                value={form.email}
+                onChange={(e) => updateField('email', e.target.value)}
+              />
+              {errors.email && <div className="error">{errors.email}</div>}
             </div>
           </div>
 
-          {/* Address */}
+          <div className="form-divider" />
+
+          {/* ── Contact address ── */}
+          <div className="section-heading">
+            <span>Contact Address</span>
+          </div>
+
           <div className="form-group">
             <label>
-              CONTACT ADDRESS <span style={{ color: 'var(--error)' }}>*</span>
+              House Address <span className="req">*</span>
             </label>
             <input
-              placeholder="House Address"
+              placeholder="Street address"
               value={form.houseAddress}
               onChange={(e) => updateField('houseAddress', e.target.value)}
-              style={{ marginBottom: '0.5rem' }}
             />
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+            {errors.houseAddress && <div className="error">{errors.houseAddress}</div>}
+          </div>
+
+          <div className="grid-2" style={{ marginBottom: '1.5rem' }}>
+            <div>
+              <label>
+                City <span className="req">*</span>
+              </label>
               <input
                 placeholder="City"
                 value={form.city}
                 onChange={(e) => updateField('city', e.target.value)}
               />
+              {errors.city && <div className="error">{errors.city}</div>}
+            </div>
+            <div>
+              <label>
+                State <span className="req">*</span>
+              </label>
               <input
                 placeholder="State"
                 value={form.state}
                 onChange={(e) => updateField('state', e.target.value)}
               />
+              {errors.state && <div className="error">{errors.state}</div>}
             </div>
-            {(errors.houseAddress || errors.city || errors.state) && (
-              <div className="error">{errors.houseAddress || errors.city || errors.state}</div>
-            )}
           </div>
 
-          {/* Dynamic Documents */}
+          {/* ── Dynamic documents ── */}
           {docRequirements && docRequirements.length > 0 && (
-            <div className="form-group">
-              <label style={{ fontSize: '1rem', marginBottom: '1rem' }}>
-                REQUIRED DOCUMENTS <span style={{ color: 'var(--error)' }}>*</span>
-              </label>
+            <>
+              <div className="form-divider" />
+              <div className="section-heading">
+                <span>Required Documents</span>
+              </div>
+
               {docRequirements.map((doc) => (
-                <div key={doc.key} style={{ marginBottom: '1.5rem' }}>
+                <div key={doc.key} className="doc-block">
                   <label>
                     {doc.label}
                     {doc.required ? (
-                      <span style={{ color: 'var(--error)' }}>*</span>
+                      <span className="req">*</span>
                     ) : (
-                      <span style={{ color: 'var(--text-secondary)' }}> (Optional)</span>
+                      <span className="optional">(Optional)</span>
                     )}
                   </label>
                   <input
@@ -351,39 +393,38 @@ export default function Home() {
                     onChange={(e) => handleFileChange(doc.key, e.target.files?.[0] || null)}
                   />
                   <div className="file-info">
-                    Max {doc.maxSizeMB}MB. PDF, JPG, or PNG.
+                    Max {doc.maxSizeMB}MB &mdash; PDF, JPG, or PNG accepted
                   </div>
                   {documents[doc.key] && (
-                    <div className="file-info" style={{ color: 'var(--primary)' }}>
+                    <div className="file-chosen">
                       {documents[doc.key]?.name} ({((documents[doc.key]?.size || 0) / 1024).toFixed(0)} KB)
                     </div>
                   )}
                   {errors[doc.key] && <div className="error">{errors[doc.key]}</div>}
                 </div>
               ))}
-            </div>
+            </>
           )}
 
-          {/* Error */}
+          {/* ── Global error ── */}
           {error && (
-            <div
-              className="error"
-              style={{
-                marginBottom: '1rem',
-                padding: '0.75rem',
-                background: '#fef2f2',
-                borderRadius: 'var(--radius)',
-              }}
-            >
+            <div className="error-banner">
               {error}
             </div>
           )}
 
-          {/* Submit */}
-          <button type="submit" disabled={submitting}>
-            {submitting && <span className="loading" />}
-            {submitting ? 'Processing...' : 'SUBMIT APPLICATION'}
-          </button>
+          {/* ── Submit ── */}
+          <div className="submit-row">
+            <button type="submit" disabled={submitting}>
+              {submitting && <span className="loading" />}
+              {submitting ? 'Processing…' : 'Submit Application'}
+            </button>
+            <p className="submit-note">
+              You will be redirected to complete<br />
+              payment after submission.
+            </p>
+          </div>
+
         </form>
       </div>
     </div>
