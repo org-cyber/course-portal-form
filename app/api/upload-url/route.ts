@@ -6,7 +6,7 @@ import { randomUUID } from 'crypto';
 const ALLOWED_TYPES = ['application/pdf', 'image/jpeg', 'image/png'];
 
 // 4MB maximum file size
-const MAX_SIZE = 4 * 1024 * 1024;
+const MAX_SIZE = 2 * 1024 * 1024; // 2MB
 
 export async function POST(request: NextRequest) {
   try {

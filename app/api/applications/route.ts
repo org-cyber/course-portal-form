@@ -5,19 +5,45 @@ import { randomUUID } from 'crypto';
 
 export async function POST(request: NextRequest) {
   try {
-    // Parse the request body
     const body = await request.json();
-    const { fullName, email, courseId, documentKey } = body;
+
+    // All fields from the form
+    const {
+      firstName,
+      middleName,
+      surname,
+      dateOfBirth,
+      gender,
+      phoneNumber,
+      email,
+      houseAddress,
+      city,
+      state,
+      courseId,
+      documentKey,
+    } = body;
 
     // Validate required fields
-    if (!fullName || !email || !courseId || !documentKey) {
+    if (
+      !firstName ||
+      !surname ||
+      !dateOfBirth ||
+      !gender ||
+      !phoneNumber ||
+      !email ||
+      !houseAddress ||
+      !city ||
+      !state ||
+      !courseId ||
+      !documentKey
+    ) {
       return NextResponse.json(
         { error: 'Missing required fields' },
         { status: 400 }
       );
     }
 
-    // Validate email format
+    // Validate email
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
       return NextResponse.json(
@@ -26,9 +52,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // SERVER-SIDE PRICE CALCULATION
-    // We look up the course by ID and get the price from our server-side catalog
-    // The frontend never sends a price. We calculate it here.
+    // Server-side price calculation
     const course = COURSES[courseId];
     if (!course) {
       return NextResponse.json(
@@ -37,15 +61,23 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Generate a unique Paystack reference
     const paystackRef = `APP-${randomUUID()}`;
 
-    // Insert the application into the database
+    // Insert application with all new fields
     const { data: application, error: dbError } = await supabaseServer
       .from('applications')
       .insert({
-        full_name: fullName.trim(),
+        full_name: `${firstName.trim()} ${middleName ? middleName.trim() + ' ' : ''}${surname.trim()}`,
+        first_name: firstName.trim(),
+        middle_name: middleName ? middleName.trim() : null,
+        surname: surname.trim(),
+        date_of_birth: dateOfBirth,
+        gender: gender,
+        phone_number: phoneNumber.trim(),
         email: email.toLowerCase().trim(),
+        house_address: houseAddress.trim(),
+        city: city.trim(),
+        state: state.trim(),
         course_id: courseId,
         expected_amount: course.amountKobo,
         status: 'PENDING_PAYMENT',
@@ -63,7 +95,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Initialize Paystack transaction
+    // Initialize Paystack
     const paystackResponse = await fetch(
       'https://api.paystack.co/transaction/initialize',
       {
@@ -87,7 +119,6 @@ export async function POST(request: NextRequest) {
 
     const paystackData = await paystackResponse.json();
 
-    // If Paystack fails, delete the application record (rollback)
     if (!paystackData.status || !paystackData.data?.authorization_url) {
       await supabaseServer.from('applications').delete().eq('id', application.id);
       console.error('Paystack error:', paystackData);
@@ -97,12 +128,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Return the Paystack payment URL to the frontend
     return NextResponse.json({
       authorizationUrl: paystackData.data.authorization_url,
       reference: paystackRef,
     });
-
   } catch (err) {
     console.error('Application error:', err);
     return NextResponse.json(
