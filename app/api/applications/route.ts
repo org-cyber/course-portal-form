@@ -6,6 +6,7 @@ import { randomUUID } from 'crypto';
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
+    console.debug('Application payload:', body);
 
     // All fields from the form
     const {
@@ -20,7 +21,7 @@ export async function POST(request: NextRequest) {
       city,
       state,
       courseId,
-      documentKey,
+      documents,
     } = body;
 
     // Validate required fields
@@ -35,7 +36,7 @@ export async function POST(request: NextRequest) {
       !city ||
       !state ||
       !courseId ||
-      !documentKey
+      !documents || Object.keys(documents).length === 0
     ) {
       return NextResponse.json(
         { error: 'Missing required fields' },
@@ -81,14 +82,21 @@ export async function POST(request: NextRequest) {
         course_id: courseId,
         expected_amount: course.amountKobo,
         status: 'PENDING_PAYMENT',
-        document_key: documentKey,
+        // store the uploaded document keys as JSON in the `document_key` jsonb column
+        // (ensure the DB has a `document_key` column of type jsonb)
+        document_key: documents,
         paystack_reference: paystackRef,
       })
       .select()
       .single();
 
     if (dbError || !application) {
-      console.error('Database error:', dbError);
+      try {
+        console.error('Database error:', dbError);
+        console.error('Database error (stringified):', JSON.stringify(dbError, Object.getOwnPropertyNames(dbError)));
+      } catch (logErr) {
+        console.error('Error logging database error:', logErr);
+      }
       return NextResponse.json(
         { error: 'Failed to save application' },
         { status: 500 }
@@ -96,7 +104,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Initialize Paystack
-    const paystackResponse = await fetch(
+    let paystackResponse;
+    try {
+      paystackResponse = await fetch(
       'https://api.paystack.co/transaction/initialize',
       {
         method: 'POST',
@@ -115,9 +125,15 @@ export async function POST(request: NextRequest) {
           },
         }),
       }
-    );
+      );
+    } catch (fetchErr) {
+      console.error('Paystack fetch error:', fetchErr);
+      await supabaseServer.from('applications').delete().eq('id', application.id);
+      return NextResponse.json({ error: 'Payment initialization failed' }, { status: 500 });
+    }
 
     const paystackData = await paystackResponse.json();
+    console.debug('Paystack init response:', { status: paystackResponse.status, body: paystackData });
 
     if (!paystackData.status || !paystackData.data?.authorization_url) {
       await supabaseServer.from('applications').delete().eq('id', application.id);

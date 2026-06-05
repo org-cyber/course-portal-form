@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
   // Look up the application by Paystack reference
   const { data, error } = await supabaseServer
     .from('applications')
-    .select('status, full_name, email, course_id, expected_amount, paystack_reference, created_at')
+    .select('id, status, full_name, email, course_id, expected_amount, paystack_reference, created_at')
     .eq('paystack_reference', reference)
     .single();
 
@@ -27,8 +27,42 @@ export async function GET(request: NextRequest) {
     );
   }
 
+  let finalStatus = data.status;
+
+  // If status is still PENDING_PAYMENT, check with Paystack directly
+  if (data.status === 'PENDING_PAYMENT') {
+    try {
+      const paystackRes = await fetch(
+        `https://api.paystack.co/transaction/verify/${reference}`,
+        {
+          headers: {
+            Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}`,
+          },
+        }
+      );
+
+      const paystackData = await paystackRes.json();
+
+      // If Paystack says it's successful, update our DB
+      if (paystackData.status && paystackData.data?.status === 'success') {
+        await supabaseServer
+          .from('applications')
+          .update({
+            status: 'PAID',
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', data.id);
+
+        finalStatus = 'PAID';
+      }
+    } catch (err) {
+      console.error('Error checking Paystack status:', err);
+      // Fall back to DB status if Paystack check fails
+    }
+  }
+
   return NextResponse.json({
-    status: data.status,
+    status: finalStatus,
     reference: data.paystack_reference,
     amount: data.expected_amount,
     courseId: data.course_id,

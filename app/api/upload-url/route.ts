@@ -5,7 +5,7 @@ import { randomUUID } from 'crypto';
 // Only these file types are allowed
 const ALLOWED_TYPES = ['application/pdf', 'image/jpeg', 'image/png'];
 
-// 4MB maximum file size
+// 2MB maximum file size
 const MAX_SIZE = 2 * 1024 * 1024; // 2MB
 
 export async function POST(request: NextRequest) {
@@ -50,7 +50,10 @@ export async function POST(request: NextRequest) {
       .createSignedUploadUrl(objectKey);
 
     if (error || !data) {
-      console.error('Supabase Storage error:', error);
+      console.error('Supabase Storage error:', error, {
+        message: error?.message,
+        originalError: (error as any)?.originalError,
+      });
       return NextResponse.json(
         { error: 'Failed to generate upload URL' },
         { status: 500 }
