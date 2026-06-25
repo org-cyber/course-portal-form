@@ -1,29 +1,50 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseServer } from '../../../lib/supabase';
+import { COURSES } from '../../../lib/types';
 
-const RESEND_FROM = 'noreply@apply.easternpolytechnic.org';
+const MAIL_API_URL = 'https://apply.easternpolytechnic.org/send-mail.php';
+const MAIL_API_KEY = process.env.MAIL_API_KEY || '';
+const FROM_EMAIL = 'noreply@apply.easternpolytechnic.org';
 
-async function sendConfirmationEmail(
+async function sendEmail(
+  to: string,
+  subject: string,
+  html: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const res = await fetch(MAIL_API_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Api-Key': MAIL_API_KEY,
+      },
+      body: JSON.stringify({
+        from: FROM_EMAIL,
+        to,
+        subject,
+        html,
+      }),
+    });
+
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      return { success: false, error: data.error || `HTTP ${res.status}` };
+    }
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: err.message };
+  }
+}
+
+async function sendCandidateEmail(
   to: string,
   name: string,
   ref: string,
   amount: number,
   courseName: string
 ): Promise<{ success: boolean; error?: string }> {
-  try {
-    const naira = (amount / 100).toFixed(2);
-
-    const res = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        from: RESEND_FROM,
-        to,
-        subject: 'Eastern Polytechnic — Application Payment Confirmed',
-        html: `<!DOCTYPE html>
+  const naira = (amount / 100).toFixed(2);
+  const html = `<!DOCTYPE html>
 <html>
 <head>
   <meta charset="utf-8">
@@ -61,19 +82,79 @@ async function sendConfirmationEmail(
     </div>
   </div>
 </body>
-</html>`,
-      }),
-    });
+</html>`;
 
-    if (!res.ok) {
-      const errData = await res.json().catch(() => ({}));
-      return { success: false, error: errData.message || `Resend HTTP ${res.status}` };
-    }
+  return sendEmail(to, 'Eastern Polytechnic — Application Payment Confirmed', html);
+}
 
-    return { success: true };
-  } catch (err: any) {
-    return { success: false, error: err.message };
+async function sendAdminEmail(
+  app: any,
+  ref: string,
+  amount: number,
+  courseName: string
+): Promise<{ success: boolean; error?: string }> {
+  const adminEmail = process.env.ADMIN_EMAIL;
+  if (!adminEmail) {
+    return { success: false, error: 'ADMIN_EMAIL not configured' };
   }
+
+  const naira = (amount / 100).toFixed(2);
+  const docs = app.document_key
+    ? Object.entries(app.document_key).map(([key, val]) => `<li><strong>${key}:</strong> ${val}</li>`).join('')
+    : '<li>No documents</li>';
+
+  const html = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+    .header { background: #1a365d; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
+    .content { background: #f8f9fa; padding: 30px; border-radius: 0 0 8px 8px; }
+    .detail { background: white; padding: 15px; margin: 10px 0; border-radius: 6px; border-left: 4px solid #c53030; }
+    .detail p { margin: 5px 0; }
+    .docs { background: white; padding: 15px; margin: 10px 0; border-radius: 6px; }
+    .docs ul { margin: 5px 0; padding-left: 20px; }
+    .footer { text-align: center; margin-top: 20px; font-size: 0.85rem; color: #666; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>New Application Received</h1>
+      <p>Eastern Polytechnic — Admission Portal</p>
+    </div>
+    <div class="content">
+      <p>A new application has been submitted and paid for.</p>
+      <div class="detail">
+        <p><strong>Full Name:</strong> ${app.full_name}</p>
+        <p><strong>Email:</strong> ${app.email}</p>
+        <p><strong>Phone:</strong> ${app.phone_number}</p>
+        <p><strong>Date of Birth:</strong> ${app.date_of_birth}</p>
+        <p><strong>Gender:</strong> ${app.gender}</p>
+        <p><strong>Address:</strong> ${app.house_address}, ${app.city}, ${app.state}</p>
+      </div>
+      <div class="detail">
+        <p><strong>Programme:</strong> ${courseName}</p>
+        <p><strong>Reference:</strong> ${ref}</p>
+        <p><strong>Amount Paid:</strong> ₦${naira}</p>
+        <p><strong>Status:</strong> ✅ PAID</p>
+      </div>
+      <div class="docs">
+        <p><strong>Uploaded Documents:</strong></p>
+        <ul>${docs}</ul>
+      </div>
+    </div>
+    <div class="footer">
+      <p>Received at ${new Date().toLocaleString()}</p>
+      <p>This is an automated notification from the admission portal.</p>
+    </div>
+  </div>
+</body>
+</html>`;
+
+  return sendEmail(adminEmail, `New Application — ${app.full_name} (${courseName})`, html);
 }
 
 export async function POST(request: NextRequest) {
@@ -84,21 +165,19 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Reference required' }, { status: 400 });
     }
 
-    // Check if already emailed
     const { data: logData } = await supabaseServer
       .from('payment_logs')
-      .select('email_sent, email_sent_at')
+      .select('email_sent, admin_email_sent')
       .eq('paystack_reference', reference)
       .single();
 
-    if (logData?.email_sent) {
-      return NextResponse.json({ sent: true, note: 'Already sent' });
+    if (logData?.email_sent && logData?.admin_email_sent) {
+      return NextResponse.json({ sent: true, note: 'Both emails already sent' });
     }
 
-    // Get application details
     const { data: app } = await supabaseServer
       .from('applications')
-      .select('email, full_name, course_id, expected_amount, status')
+      .select('email, full_name, course_id, expected_amount, document_key, date_of_birth, gender, phone_number, house_address, city, state, status')
       .eq('paystack_reference', reference)
       .single();
 
@@ -110,55 +189,55 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Payment not confirmed' }, { status: 400 });
     }
 
-    // Get course name
-    const { data: courseData } = await supabaseServer
-      .from('applications')
-      .select('course_id')
-      .eq('paystack_reference', reference)
-      .single();
+   const courseName = COURSES[app.course_id]?.name || app.course_id;
+    let candidateOk = logData?.email_sent || false;
+    let adminOk = logData?.admin_email_sent || false;
 
-    const courseName = courseData?.course_id || 'Your Selected Programme';
-
-    // Send email
-    const result = await sendConfirmationEmail(
-      app.email,
-      app.full_name,
-      reference,
-      app.expected_amount,
-      courseName
-    );
-
-    if (result.success) {
-      // Update payment log
-      if (logData) {
-        await supabaseServer
-          .from('payment_logs')
-          .update({ email_sent: true, email_sent_at: new Date().toISOString() })
-          .eq('paystack_reference', reference);
-      } else {
-        // No log exists yet (webhook hasn't fired) — create one
-        const { data: appData } = await supabaseServer
-          .from('applications')
-          .select('id')
-          .eq('paystack_reference', reference)
-          .single();
-
-        if (appData) {
-          await supabaseServer.from('payment_logs').insert({
-            application_id: appData.id,
-            paystack_reference: reference,
-            amount_paid: app.expected_amount,
-            payment_status: 'success',
-            email_sent: true,
-            email_sent_at: new Date().toISOString(),
-          });
-        }
-      }
-
-      return NextResponse.json({ sent: true });
-    } else {
-      return NextResponse.json({ sent: false, error: result.error }, { status: 500 });
+    if (!candidateOk) {
+      const cRes = await sendCandidateEmail(app.email, app.full_name, reference, app.expected_amount, courseName);
+      if (cRes.success) candidateOk = true;
     }
+
+    if (!adminOk) {
+      const aRes = await sendAdminEmail(app, reference, app.expected_amount, courseName);
+      if (aRes.success) adminOk = true;
+    }
+
+    const updates: any = {};
+    if (candidateOk) {
+      updates.email_sent = true;
+      updates.email_sent_at = new Date().toISOString();
+    }
+    if (adminOk) {
+      updates.admin_email_sent = true;
+      updates.admin_email_sent_at = new Date().toISOString();
+    }
+
+    if (logData) {
+      await supabaseServer.from('payment_logs').update(updates).eq('paystack_reference', reference);
+    } else {
+      const { data: appData } = await supabaseServer
+        .from('applications')
+        .select('id')
+        .eq('paystack_reference', reference)
+        .single();
+
+      if (appData) {
+        await supabaseServer.from('payment_logs').insert({
+          application_id: appData.id,
+          paystack_reference: reference,
+          amount_paid: app.expected_amount,
+          payment_status: 'success',
+          ...updates,
+        });
+      }
+    }
+
+    return NextResponse.json({
+      sent: candidateOk && adminOk,
+      candidateEmail: candidateOk,
+      adminEmail: adminOk,
+    });
   } catch (err: any) {
     console.error('Confirm email error:', err);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
