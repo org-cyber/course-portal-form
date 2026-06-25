@@ -8,7 +8,6 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     console.debug('Application payload:', body);
 
-    // All fields from the form
     const {
       firstName,
       middleName,
@@ -24,7 +23,6 @@ export async function POST(request: NextRequest) {
       documents,
     } = body;
 
-    // Validate required fields
     if (
       !firstName ||
       !surname ||
@@ -44,7 +42,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate email
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
       return NextResponse.json(
@@ -53,7 +50,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Server-side price calculation
     const course = COURSES[courseId];
     if (!course) {
       return NextResponse.json(
@@ -64,7 +60,6 @@ export async function POST(request: NextRequest) {
 
     const paystackRef = `APP-${randomUUID()}`;
 
-    // Insert application with all new fields
     const { data: application, error: dbError } = await supabaseServer
       .from('applications')
       .insert({
@@ -82,8 +77,6 @@ export async function POST(request: NextRequest) {
         course_id: courseId,
         expected_amount: course.amountKobo,
         status: 'PENDING_PAYMENT',
-        // store the uploaded document keys as JSON in the `document_key` jsonb column
-        // (ensure the DB has a `document_key` column of type jsonb)
         document_key: documents,
         paystack_reference: paystackRef,
       })
@@ -91,40 +84,34 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (dbError || !application) {
-      try {
-        console.error('Database error:', dbError);
-        console.error('Database error (stringified):', JSON.stringify(dbError, Object.getOwnPropertyNames(dbError)));
-      } catch (logErr) {
-        console.error('Error logging database error:', logErr);
-      }
+      console.error('Database error:', dbError);
       return NextResponse.json(
         { error: 'Failed to save application' },
         { status: 500 }
       );
     }
 
-    // Initialize Paystack
     let paystackResponse;
     try {
       paystackResponse = await fetch(
-      'https://api.paystack.co/transaction/initialize',
-      {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          email: application.email,
-          amount: course.amountKobo,
-          reference: paystackRef,
-          callback_url: `${process.env.NEXT_PUBLIC_APP_URL}/success?reference=${paystackRef}`,
-          metadata: {
-            application_id: application.id,
-            course_name: course.name,
+        'https://api.paystack.co/transaction/initialize',
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}`,
+            'Content-Type': 'application/json',
           },
-        }),
-      }
+          body: JSON.stringify({
+            email: application.email,
+            amount: course.amountKobo,
+            reference: paystackRef,
+            callback_url: `${process.env.NEXT_PUBLIC_APP_URL}/success?reference=${paystackRef}`,
+            metadata: {
+              application_id: application.id,
+              course_name: course.name,
+            },
+          }),
+        }
       );
     } catch (fetchErr) {
       console.error('Paystack fetch error:', fetchErr);

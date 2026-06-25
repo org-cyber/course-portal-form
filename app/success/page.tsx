@@ -13,6 +13,7 @@ interface PaymentData {
   fullName: string;
   email: string;
   createdAt: string;
+  emailSent: boolean;
 }
 
 function SuccessContent() {
@@ -23,6 +24,7 @@ function SuccessContent() {
     status: Status;
     data?: PaymentData;
     error?: string;
+    emailStatus?: 'sending' | 'sent' | 'failed';
   }>({ status: 'loading' });
 
   useEffect(() => {
@@ -47,6 +49,11 @@ function SuccessContent() {
         if (data.status === 'PAID') {
           setState({ status: 'paid', data });
           clearInterval(intervalId);
+
+          // Fallback: trigger email if webhook hasn't sent it yet
+          if (!data.emailSent) {
+            triggerEmail(reference);
+          }
           return;
         }
 
@@ -64,6 +71,24 @@ function SuccessContent() {
       } catch (err: any) {
         setState({ status: 'error', error: err.message });
         clearInterval(intervalId);
+      }
+    };
+
+    const triggerEmail = async (ref: string) => {
+      try {
+        setState((prev) => ({ ...prev, emailStatus: 'sending' }));
+        const res = await fetch('/api/confirm-email', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ reference: ref }),
+        });
+        if (res.ok) {
+          setState((prev) => ({ ...prev, emailStatus: 'sent' }));
+        } else {
+          setState((prev) => ({ ...prev, emailStatus: 'failed' }));
+        }
+      } catch {
+        setState((prev) => ({ ...prev, emailStatus: 'failed' }));
       }
     };
 
@@ -134,7 +159,13 @@ function SuccessContent() {
                 color: 'var(--text-secondary)',
               }}
             >
-              A confirmation email has been sent to your inbox.
+              {state.emailStatus === 'sending'
+                ? 'Sending confirmation email...'
+                : state.emailStatus === 'sent'
+                ? 'A confirmation email has been sent to your inbox.'
+                : state.emailStatus === 'failed'
+                ? 'We had trouble sending your confirmation email. Please contact admissions if you do not receive it shortly.'
+                : 'A confirmation email has been sent to your inbox.'}
             </p>
           </>
         )}
@@ -158,6 +189,20 @@ function SuccessContent() {
               There was an issue with your payment. Please try again.
             </p>
             <p className="file-info">Reference: {reference}</p>
+            <button
+              onClick={() => window.location.href = '/'}
+              style={{
+                marginTop: '1rem',
+                padding: '0.75rem 1.5rem',
+                background: 'var(--primary)',
+                color: 'white',
+                border: 'none',
+                borderRadius: 'var(--radius)',
+                cursor: 'pointer',
+              }}
+            >
+              Try Again
+            </button>
           </>
         )}
 

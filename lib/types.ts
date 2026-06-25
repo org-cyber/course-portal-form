@@ -13,13 +13,14 @@ export interface DocumentField {
   maxSizeMB: number;
 }
 
-// Course catalog with prices
+// Course catalog with prices — ALL SET TO ₦100 FOR TESTING
+// Change these back to actual prices before full production launch
 export const COURSES: Record<string, Course> = {
-  'nd': { id: 'nd', name: 'National Diploma (ND)', amountKobo: 50000 },
-  'hnd': { id: 'hnd', name: 'Higher National Diploma (HND)', amountKobo: 75000 },
-  'hnd-bsc': { id: 'hnd-bsc', name: 'HND To BSc / Conversion (UNICROSS)', amountKobo: 100000 },
-  'pgd': { id: 'pgd', name: 'Post Graduate Diploma (PGD) (UNICROSS)', amountKobo: 125000 },
-  'masters': { id: 'masters', name: 'Masters Degree (UNICROSS)', amountKobo: 150000 },
+  'nd': { id: 'nd', name: 'National Diploma (ND)', amountKobo: 10000 },
+  'hnd': { id: 'hnd', name: 'Higher National Diploma (HND)', amountKobo: 10000 },
+  'hnd-bsc': { id: 'hnd-bsc', name: 'HND To BSc / Conversion (UNICROSS)', amountKobo: 10000 },
+  'pgd': { id: 'pgd', name: 'Post Graduate Diploma (PGD) (UNICROSS)', amountKobo: 10000 },
+  'masters': { id: 'masters', name: 'Masters Degree (UNICROSS)', amountKobo: 10000 },
 };
 
 // Document requirements per course
