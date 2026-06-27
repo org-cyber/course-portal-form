@@ -3,6 +3,7 @@
 import { useState, FormEvent } from 'react';
 import { DOCUMENT_REQUIREMENTS } from '../lib/types';
 
+
 const COURSES = [
   { id: 'nd', name: 'National Diploma (ND)' },
   { id: 'hnd', name: 'Higher National Diploma (HND)' },
@@ -168,17 +169,54 @@ export default function Home() {
   };
 
   return (
+    <>
+    {/* ── Header Navigation (Moved OUTSIDE the container) ── */}
+      <header className="site-header">
+        <div className="header-container">
+          <div className="header-brand">
+            <div className="header-logo">
+              <img src="/logo.png" alt="Eastern Polytechnic" className="header-logo-image" />
+            </div>
+            
+          </div>
+          
+          <nav className="header-nav">
+            <button className="nav-btn portal-btn">
+              <a href='https://easternpolytechnic.fedena.com/' className='onetime'>
+              <strong>
+              PORTAL</strong>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
+              </svg>
+              </a>
+            </button>
+            <a href="https://easternpolytechnic.org/" className="nav-link">Home</a>
+            <a href="https://easternpolytechnic.org/about-us/" className="nav-link">About Us</a>
+            <div className="nav-dropdown">
+              <button className="nav-link dropdown-toggle">
+                Courses
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M7 10l5 5 5-5z"/>
+                </svg>
+              </button>
+            </div>
+            <a href="https://easternpolytechnic.org/pay-fees/" className="nav-link">Fees</a>
+            <a href="https://easternpolytechnic.org/news/" className="nav-link">News</a>
+            <a href="https://easternpolytechnic.org/contacts/" className="nav-link">Contact Us</a>
+            <button className="nav-btn apply-btn">
+              <a href='https://application.easternpolytechnic.org/' className='onetime'>
+              <strong>
+              APPLY NOW</strong>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M19 19H5V5h7V3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2v-7h-2v7zM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7z"/>
+              </svg>
+              </a>
+            </button>
+          </nav>
+        </div>
+      </header>
     <div className="container">
-      {/* ── Masthead ── */}
-      <div className="masthead">
-        <div className="masthead-logo">
-          <img src="/logo.png" alt="Eastern Polytechnic" className="masthead-image" />
-        </div>
-        <div className="masthead-body">
-          <h1>Eastern Polytechnic</h1>
-          <p>Online Admission Portal &mdash; 2025/2026 Session</p>
-        </div>
-      </div>
+   
 
       {/* ── Card ── */}
       <div className="card">
@@ -413,7 +451,7 @@ export default function Home() {
             </div>
           )}
 
-          {/* ── Submit ── */}
+          {/* ── Submit ─ */}
           <div className="submit-row">
             <button type="submit" disabled={submitting}>
               {submitting && <span className="loading" />}
@@ -428,5 +466,13 @@ export default function Home() {
         </form>
       </div>
     </div>
+          {/* ── Footer ── */}
+      <footer className="site-footer">
+        <div className="footer-container">
+          <p>Copyright © 2026 Eastern Polytechnic. All rights reserved.</p>
+        </div>
+      </footer>
+    </>
+    
   );
 }
